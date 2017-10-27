@@ -1,0 +1,6 @@
+src/*.pyc
+log/*
+output/*
+._.DS_Store
+.DS_Store
+
