@@ -343,6 +343,7 @@ def main(_):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
+    parser.add_argument('--config', type=str, help='Path to the pre-defined config args.')
     parser.add_argument('--train_path', type=str, help='Path to the train set.')
     parser.add_argument('--dev_path', type=str, help='Path to the dev set.')
     parser.add_argument('--test_path', type=str, help='Path to the test set.')
@@ -364,7 +365,8 @@ if __name__ == '__main__':
     parser.add_argument('--aggregation_layer_num', type=int, default=1, help='Number of LSTM layers for aggregation layer.')
     parser.add_argument('--context_layer_num', type=int, default=1, help='Number of LSTM layers for context representation layer.')
     parser.add_argument('--highway_layer_num', type=int, default=1, help='Number of highway layers.')
-    parser.add_argument('--suffix', type=str, default='normal', required=True, help='Suffix of the model name.')
+    # parser.add_argument('--suffix', type=str, default='normal', required=True, help='Suffix of the model name.')
+    parser.add_argument('--suffix', type=str, default='normal', help='Suffix of the model name.')
     parser.add_argument('--fix_word_vec', default=False, help='Fix pre-trained word embeddings during training.', action='store_true')
     parser.add_argument('--with_highway', default=False, help='Utilize highway layers.', action='store_true')
     parser.add_argument('--with_filter_layer', default=False, help='Utilize filter layer.', action='store_true')
@@ -387,6 +389,8 @@ if __name__ == '__main__':
 
 #     print("CUDA_VISIBLE_DEVICES " + os.environ['CUDA_VISIBLE_DEVICES'])
     sys.stdout.flush()
-    FLAGS, unparsed = parser.parse_known_args()
+    # FLAGS, unparsed = parser.parse_known_args()
+    args, unparsed = parser.parse_known_args()
+    FLAGS = namespace_utils.load_namespace(args.config)
     tf.app.run(main=main, argv=[sys.argv[0]] + unparsed)
 
