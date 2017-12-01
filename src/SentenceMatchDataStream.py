@@ -31,8 +31,6 @@ def pad_3d_tensor(in_val, max_length1=None, max_length2=None, dtype=np.int32):
             out_val[i, j, :kept_length] = cur_in_val[:kept_length]
     return out_val
 
-
-
 class SentenceMatchDataStream(object):
     def __init__(self, inpath, word_vocab=None, char_vocab=None, POS_vocab=None, NER_vocab=None, label_vocab=None, batch_size=60, 
                  isShuffle=False, isLoop=False, isSort=True, max_char_per_word=10, max_sent_length=200):

@@ -180,7 +180,6 @@ class SentenceMatchModelGraph(object):
 #         self.loss = tf.reduce_mean(cross_entropy, name='cross_entropy')
 
         gold_matrix = tf.one_hot(self.truth, num_classes, dtype=tf.float32)
-#         gold_matrix = tf.one_hot(self.truth, num_classes)
         self.loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits, gold_matrix))
 
         correct = tf.nn.in_top_k(logits, self.truth, 1)
@@ -227,299 +226,224 @@ class SentenceMatchModelGraph(object):
     def get_predictions(self):
         return self.__predictions
 
-
     def set_predictions(self, value):
         self.__predictions = value
-
 
     def del_predictions(self):
         del self.__predictions
 
-
-
     def get_eval_correct(self):
         return self.__eval_correct
-
 
     def set_eval_correct(self, value):
         self.__eval_correct = value
 
-
     def del_eval_correct(self):
         del self.__eval_correct
-
 
     def get_question_lengths(self):
         return self.__question_lengths
 
-
     def get_passage_lengths(self):
         return self.__passage_lengths
-
 
     def get_truth(self):
         return self.__truth
 
-
     def get_in_question_words(self):
         return self.__in_question_words
-
 
     def get_in_passage_words(self):
         return self.__in_passage_words
 
-
     def get_word_embedding(self):
         return self.__word_embedding
-
 
     def get_in_question_poss(self):
         return self.__in_question_POSs
 
-
     def get_in_passage_poss(self):
         return self.__in_passage_POSs
-
 
     def get_pos_embedding(self):
         return self.__POS_embedding
 
-
     def get_in_question_ners(self):
         return self.__in_question_NERs
-
 
     def get_in_passage_ners(self):
         return self.__in_passage_NERs
 
-
     def get_ner_embedding(self):
         return self.__NER_embedding
-
 
     def get_question_char_lengths(self):
         return self.__question_char_lengths
 
-
     def get_passage_char_lengths(self):
         return self.__passage_char_lengths
-
 
     def get_in_question_chars(self):
         return self.__in_question_chars
 
-
     def get_in_passage_chars(self):
         return self.__in_passage_chars
-
 
     def get_char_embedding(self):
         return self.__char_embedding
 
-
     def get_prob(self):
         return self.__prob
-
 
     def get_prediction(self):
         return self.__prediction
 
-
     def get_loss(self):
         return self.__loss
-
 
     def get_train_op(self):
         return self.__train_op
 
-
     def get_global_step(self):
         return self.__global_step
-
 
     def get_lr_rate(self):
         return self.__lr_rate
 
-
     def set_question_lengths(self, value):
         self.__question_lengths = value
-
 
     def set_passage_lengths(self, value):
         self.__passage_lengths = value
 
-
     def set_truth(self, value):
         self.__truth = value
-
 
     def set_in_question_words(self, value):
         self.__in_question_words = value
 
-
     def set_in_passage_words(self, value):
         self.__in_passage_words = value
-
 
     def set_word_embedding(self, value):
         self.__word_embedding = value
 
-
     def set_in_question_poss(self, value):
         self.__in_question_POSs = value
-
 
     def set_in_passage_poss(self, value):
         self.__in_passage_POSs = value
 
-
     def set_pos_embedding(self, value):
         self.__POS_embedding = value
-
 
     def set_in_question_ners(self, value):
         self.__in_question_NERs = value
 
-
     def set_in_passage_ners(self, value):
         self.__in_passage_NERs = value
-
 
     def set_ner_embedding(self, value):
         self.__NER_embedding = value
 
-
     def set_question_char_lengths(self, value):
         self.__question_char_lengths = value
-
 
     def set_passage_char_lengths(self, value):
         self.__passage_char_lengths = value
 
-
     def set_in_question_chars(self, value):
         self.__in_question_chars = value
-
 
     def set_in_passage_chars(self, value):
         self.__in_passage_chars = value
 
-
     def set_char_embedding(self, value):
         self.__char_embedding = value
-
 
     def set_prob(self, value):
         self.__prob = value
 
-
     def set_prediction(self, value):
         self.__prediction = value
-
 
     def set_loss(self, value):
         self.__loss = value
 
-
     def set_train_op(self, value):
         self.__train_op = value
-
 
     def set_global_step(self, value):
         self.__global_step = value
 
-
     def set_lr_rate(self, value):
         self.__lr_rate = value
-
 
     def del_question_lengths(self):
         del self.__question_lengths
 
-
     def del_passage_lengths(self):
         del self.__passage_lengths
-
 
     def del_truth(self):
         del self.__truth
 
-
     def del_in_question_words(self):
         del self.__in_question_words
-
 
     def del_in_passage_words(self):
         del self.__in_passage_words
 
-
     def del_word_embedding(self):
         del self.__word_embedding
-
 
     def del_in_question_poss(self):
         del self.__in_question_POSs
 
-
     def del_in_passage_poss(self):
         del self.__in_passage_POSs
-
 
     def del_pos_embedding(self):
         del self.__POS_embedding
 
-
     def del_in_question_ners(self):
         del self.__in_question_NERs
-
 
     def del_in_passage_ners(self):
         del self.__in_passage_NERs
 
-
     def del_ner_embedding(self):
         del self.__NER_embedding
-
 
     def del_question_char_lengths(self):
         del self.__question_char_lengths
 
-
     def del_passage_char_lengths(self):
         del self.__passage_char_lengths
-
 
     def del_in_question_chars(self):
         del self.__in_question_chars
 
-
     def del_in_passage_chars(self):
         del self.__in_passage_chars
-
 
     def del_char_embedding(self):
         del self.__char_embedding
 
-
     def del_prob(self):
         del self.__prob
-
 
     def del_prediction(self):
         del self.__prediction
 
-
     def del_loss(self):
         del self.__loss
-
 
     def del_train_op(self):
         del self.__train_op
 
-
     def del_global_step(self):
         del self.__global_step
-
 
     def del_lr_rate(self):
         del self.__lr_rate

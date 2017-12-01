@@ -19,7 +19,7 @@ class Vocab(object):
         elif fileformat == 'map':
             self.fromMap(word2id, word_vecs, word_dim=dim)
         else: # build a vocabulary with a word set
-            self.fromVocabualry(voc, dim=dim)
+            self.fromVocabulary(voc, dim=dim)
         
         self.__unk_mapping = None
         if unk_mapping_path is not None:
@@ -31,7 +31,7 @@ class Vocab(object):
             in_file.close()
 
 
-    def fromVocabualry(self, voc, dim=100):
+    def fromVocabulary(self, voc, dim=100):
         # load freq table and build index for each word
         self.word2id = {}
         self.id2word = {}
@@ -42,12 +42,11 @@ class Vocab(object):
             cur_index = len(self.word2id)
             self.word2id[word] = cur_index 
             self.id2word[cur_index] = word
-        
-#         self.word_vecs = np.zeros((self.vocab_size+1, self.word_dim), dtype=np.float32) # the last dimension is all zero
+
+        # uniform random initialization between -0.05 and +0.05
         shape = (self.vocab_size+1, self.word_dim)
         scale = 0.05
         self.word_vecs = np.array(np.random.uniform(low=-scale, high=scale, size=shape), dtype=np.float32)
-#         self.word_vecs = None
 
     def fromMap(self, word2id, word_vecs, word_dim=100):
         self.word2id = word2id
@@ -56,8 +55,6 @@ class Vocab(object):
         self.vocab_size = len(word2id) 
         self.word_dim = word_dim 
         self.word_vecs = word_vecs
-
-
 
     def fromText(self, vec_path,voc=None):
         # load freq table and build index for each word
@@ -84,7 +81,6 @@ class Vocab(object):
         self.word_vecs = np.zeros((self.vocab_size+1, self.word_dim), dtype=np.float32) # the last dimension is all zero
         for cur_index in xrange(self.vocab_size):
             self.word_vecs[cur_index] = word_vecs[cur_index]
-    
 
     def fromText_format2(self, vec_path,voc=None,pre_word_vecs=None):
         # load freq table and build index for each word
@@ -114,15 +110,12 @@ class Vocab(object):
             for cur_index in xrange(self.vocab_size):
                 self.word_vecs[cur_index] = word_vecs[cur_index]
 
-
     def fromText_format3(self, vec_path,voc=None):
         # load freq table and build index for each word
         self.word2id = {}
         self.id2word = {}
         
         vec_file = open(vec_path, 'rt')
-#         header = vec_file.readline()
-#         self.vocab_size, self.word_dim = map(int, header.split())
         word_vecs = {}
         for line in vec_file:
             line = line.decode('utf-8').strip()
@@ -141,8 +134,6 @@ class Vocab(object):
         self.word_vecs = np.zeros((self.vocab_size+1, self.word_dim), dtype=np.float32) # the last dimension is all zero
         for cur_index in xrange(self.vocab_size):
             self.word_vecs[cur_index] = word_vecs[cur_index]
-
-
 
     def fromText_bak(self, vec_path,voc=None):
         # load freq table and build index for each word
@@ -298,8 +289,6 @@ class Vocab(object):
             seq.append(idx)
         return seq
 
-
-
     def to_character_matrix(self, sentence):
 #         sentence = sentence.strip().lower()
         sentence = sentence.strip()
@@ -366,7 +355,6 @@ class Vocab(object):
         for word in self.word2id.keys():
             cur_id = self.word2id[word]
             cur_vector = self.getVector(word)
-#             print(word)
             word= word.encode('utf-8')
             outline = "{}\t{}\t{}".format(cur_id, word, vec2string(cur_vector))
             outfile.write(outline + "\n")
@@ -386,7 +374,6 @@ def vec2string(val):
     for v in val:
         result += " {}".format(v)
     return result.strip()
-
 
 def collect_all_ngram(words, n=2): 
     all_ngrams = set()
@@ -506,6 +493,7 @@ def build_word_index_file(word_vec_path, out_path):
         wid = word2id[word]
         out_file.write('{}\t{}\n'.format(word, wid))
     out_file.close()
+
 def load_word_index(index_path):
     word2id = {}
     in_file = open(index_path, 'rt')

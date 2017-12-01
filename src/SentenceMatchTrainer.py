@@ -1,10 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
-import argparse
-import os
-import sys
-import time
-import re
+import argparse, os, sys, time, re, logging
 import tensorflow as tf
 
 from vocab_utils import Vocab
@@ -15,6 +11,7 @@ import namespace_utils
 FLAGS = None
 
 def collect_vocabs(train_path, with_POS=False, with_NER=False):
+    #ATTENTION
     all_labels = set()
     all_words = set()
     all_POSs = None
@@ -27,7 +24,7 @@ def collect_vocabs(train_path, with_POS=False, with_NER=False):
         if line.startswith('-'): continue
         items = re.split("\t", line)
         label = items[0]
-        sentence1 = re.split("\\s+",items[1].lower())
+        sentence1 = re.split("\\s+",items[1].lower()) # \\s+ matches one or many whitespaces
         sentence2 = re.split("\\s+",items[2].lower())
         all_labels.add(label)
         all_words.update(sentence1)
@@ -50,6 +47,7 @@ def evaluate(dataStream, valid_graph, sess, outpath=None, label_vocab=None, mode
     if outpath is not None: outfile = open(outpath, 'wt')
     total_tags = 0.0
     correct_tags = 0.0
+    probs_list = {}
     dataStream.reset()
     for batch_index in xrange(dataStream.get_num_batch()):
         cur_dev_batch = dataStream.get_batch(batch_index)
@@ -57,16 +55,13 @@ def evaluate(dataStream, valid_graph, sess, outpath=None, label_vocab=None, mode
                                  char_matrix_idx_1_batch, char_matrix_idx_2_batch, sent1_length_batch, sent2_length_batch, 
                                  sent1_char_length_batch, sent2_char_length_batch,
                                  POS_idx_1_batch, POS_idx_2_batch, NER_idx_1_batch, NER_idx_2_batch) = cur_dev_batch
+
         feed_dict = {
                     valid_graph.get_truth(): label_id_batch, 
                     valid_graph.get_question_lengths(): sent1_length_batch, 
                     valid_graph.get_passage_lengths(): sent2_length_batch, 
                     valid_graph.get_in_question_words(): word_idx_1_batch, 
                     valid_graph.get_in_passage_words(): word_idx_2_batch, 
-#                     valid_graph.get_question_char_lengths(): sent1_char_length_batch, 
-#                     valid_graph.get_passage_char_lengths(): sent2_char_length_batch, 
-#                     valid_graph.get_in_question_chars(): char_matrix_idx_1_batch, 
-#                     valid_graph.get_in_passage_chars(): char_matrix_idx_2_batch, 
                 }
 
         if char_vocab is not None:
@@ -83,9 +78,9 @@ def evaluate(dataStream, valid_graph, sess, outpath=None, label_vocab=None, mode
             feed_dict[valid_graph.get_in_question_ners()] = NER_idx_1_batch
             feed_dict[valid_graph.get_in_passage_ners()] = NER_idx_2_batch
 
-
         total_tags += len(label_batch)
         correct_tags += sess.run(valid_graph.get_eval_correct(), feed_dict=feed_dict)
+
         if outpath is not None:
             if mode =='prediction':
                 predictions = sess.run(valid_graph.get_predictions(), feed_dict=feed_dict)
@@ -95,12 +90,21 @@ def evaluate(dataStream, valid_graph, sess, outpath=None, label_vocab=None, mode
             else:
                 probs = sess.run(valid_graph.get_prob(), feed_dict=feed_dict)
                 for i in xrange(len(label_batch)):
-                    outfile.write(label_batch[i] + "\t" + output_probs(probs[i], label_vocab) + "\n")
+                    outline = label_batch[i] + "\t" + output_probs(probs[i], label_vocab) + "\t" + sent1_batch[i] + "\t" + sent2_batch[i] + "\n"
+                    outfile.write(outline.encode('utf-8'))
+                    #[{'content': 'Text of candidate', 'relevance_score': 0.9}]
+                    if probs_list.has_key(sent1_batch[i]):
+                        probs_list[sent1_batch[i]].append({"content":sent2_batch[i], 'relevance_score': probs[i][0]})
+                    else:
+                        probs_list[sent1_batch[i]] = [{"content":sent2_batch[i], 'relevance_score': probs[i][0]}]
 
     if outpath is not None: outfile.close()
 
-    accuracy = correct_tags / total_tags * 100
-    return accuracy
+    if mode == 'prediction':
+        accuracy = correct_tags / total_tags * 100
+        return accuracy
+    else:
+        return probs_list
 
 def output_probs(probs, label_vocab):
     out_string = ""
@@ -141,7 +145,7 @@ def main(_):
         if FLAGS.with_POS: POS_vocab = Vocab(POS_path, fileformat='txt2')
         if FLAGS.with_NER: NER_vocab = Vocab(NER_path, fileformat='txt2')
     else:
-        print('Collect words, chars and labels ...')
+        L.info('Collect words, chars and labels ...')
         (all_words, all_chars, all_labels, all_POSs, all_NERs) = collect_vocabs(train_path, with_POS=FLAGS.with_POS, with_NER=FLAGS.with_NER)
         print('Number of words: {}'.format(len(all_words)))
         print('Number of labels: {}'.format(len(all_labels)))
@@ -166,7 +170,7 @@ def main(_):
     print('tag_vocab shape is {}'.format(label_vocab.word_vecs.shape))
     num_classes = label_vocab.size()
 
-    print('Build SentenceMatchDataStream ... ')
+    L.info('Build SentenceMatchDataStream ... ')
     trainDataStream = SentenceMatchDataStream(train_path, word_vocab=word_vocab, char_vocab=char_vocab, 
                                               POS_vocab=POS_vocab, NER_vocab=NER_vocab, label_vocab=label_vocab, 
                                               batch_size=FLAGS.batch_size, isShuffle=True, isLoop=True, isSort=True, 
@@ -196,7 +200,7 @@ def main(_):
     init_scale = 0.01
     with tf.Graph().as_default():
         initializer = tf.random_uniform_initializer(-init_scale, init_scale)
-#         with tf.name_scope("Train"):
+        L.info('Building train and valid graphs ...')
         with tf.variable_scope("Model", reuse=None, initializer=initializer):
             train_graph = SentenceMatchModelGraph(num_classes, word_vocab=word_vocab, char_vocab=char_vocab,POS_vocab=POS_vocab, NER_vocab=NER_vocab, 
                  dropout_rate=FLAGS.dropout_rate, learning_rate=FLAGS.learning_rate, optimize_type=FLAGS.optimize_type,
@@ -213,7 +217,6 @@ def main(_):
                  with_attentive_match=(not FLAGS.wo_attentive_match), with_max_attentive_match=(not FLAGS.wo_max_attentive_match))
             tf.summary.scalar("Training Loss", train_graph.get_loss()) # Add a scalar summary for the snapshot loss.
         
-#         with tf.name_scope("Valid"):
         with tf.variable_scope("Model", reuse=True, initializer=initializer):
             valid_graph = SentenceMatchModelGraph(num_classes, word_vocab=word_vocab, char_vocab=char_vocab, POS_vocab=POS_vocab, NER_vocab=NER_vocab, 
                  dropout_rate=FLAGS.dropout_rate, learning_rate=FLAGS.learning_rate, optimize_type=FLAGS.optimize_type,
@@ -229,27 +232,29 @@ def main(_):
                  with_full_match=(not FLAGS.wo_full_match), with_maxpool_match=(not FLAGS.wo_maxpool_match), 
                  with_attentive_match=(not FLAGS.wo_attentive_match), with_max_attentive_match=(not FLAGS.wo_max_attentive_match))
 
-                
         initializer = tf.global_variables_initializer()
+
+        # do not save word embedding file as they are not tuned
         vars_ = {}
         for var in tf.all_variables():
             if "word_embedding" in var.name: continue
-#             if not var.name.startswith("Model"): continue
             vars_[var.name.split(":")[0]] = var
         saver = tf.train.Saver(vars_)
          
         sess = tf.Session()
         sess.run(initializer)
-        if has_pre_trained_model:
-            print("Restoring model from " + best_path)
-            saver.restore(sess, best_path)
-            print("DONE!")
 
-        print('Start the training loop.')
+        if has_pre_trained_model:
+            L.info("Restoring model from " + best_path)
+            saver.restore(sess, best_path)
+            L.info("DONE!")
+
+        L.info('Start the training loop ...')
         train_size = trainDataStream.get_num_batch()
         max_steps = train_size * FLAGS.max_epochs
         total_loss = 0.0
         start_time = time.time()
+
         for step in xrange(max_steps):
             # read data
             cur_batch = trainDataStream.nextBatch()
@@ -260,13 +265,9 @@ def main(_):
             feed_dict = {
                          train_graph.get_truth(): label_id_batch, 
                          train_graph.get_question_lengths(): sent1_length_batch, 
-                         train_graph.get_passage_lengths(): sent2_length_batch, 
-                         train_graph.get_in_question_words(): word_idx_1_batch, 
-                         train_graph.get_in_passage_words(): word_idx_2_batch, 
-#                          train_graph.get_question_char_lengths(): sent1_char_length_batch, 
-#                          train_graph.get_passage_char_lengths(): sent2_char_length_batch, 
-#                          train_graph.get_in_question_chars(): char_matrix_idx_1_batch, 
-#                          train_graph.get_in_passage_chars(): char_matrix_idx_2_batch, 
+                         train_graph.get_passage_lengths(): sent2_length_batch,
+                         train_graph.get_in_question_words(): word_idx_1_batch,
+                         train_graph.get_in_passage_words(): word_idx_2_batch,
                          }
             if char_vocab is not None:
                 feed_dict[train_graph.get_question_char_lengths()] = sent1_char_length_batch
@@ -286,30 +287,32 @@ def main(_):
             total_loss += loss_value
             
             if step % 100==0: 
-                print('{} '.format(step), end="")
+                L.info('{} '.format(step), end="")
                 sys.stdout.flush()
 
             # Save a checkpoint and evaluate the model periodically.
             if (step + 1) % trainDataStream.get_num_batch() == 0 or (step + 1) == max_steps:
-                print()
+
                 # Print status to stdout.
                 duration = time.time() - start_time
                 start_time = time.time()
-                print('Step %d: loss = %.2f (%.3f sec)' % (step, total_loss, duration))
+                L.info('Step %d: loss = %.2f (%.3f sec)' % (step, total_loss, duration))
                 total_loss = 0.0
 
                 # Evaluate against the validation set.
-                print('Validation Data Eval:')
+                L.info('Validation Data Eval:')
                 accuracy = evaluate(devDataStream, valid_graph, sess,char_vocab=char_vocab, POS_vocab=POS_vocab, NER_vocab=NER_vocab)
-                print("Current accuracy is %.2f" % accuracy)
+                L.info("Current accuracy is %.2f" % accuracy)
                 if accuracy>best_accuracy:
                     best_accuracy = accuracy
                     saver.save(sess, best_path)
 
-    print("Best accuracy on dev set is %.2f" % best_accuracy)
+    L.info("Best accuracy on dev set is %.2f" % best_accuracy)
+
     # decoding
-    print('Decoding on the test set:')
+    L.info('Decoding on the test set:')
     init_scale = 0.01
+
     with tf.Graph().as_default():
         initializer = tf.random_uniform_initializer(-init_scale, init_scale)
         with tf.variable_scope("Model", reuse=False, initializer=initializer):
@@ -339,9 +342,17 @@ def main(_):
         saver.restore(sess, best_path)
 
         accuracy = evaluate(testDataStream, valid_graph, sess,char_vocab=char_vocab,POS_vocab=POS_vocab, NER_vocab=NER_vocab)
-        print("Accuracy for test set is %.2f" % accuracy)
+        L.info("Accuracy for test set is %.2f" % accuracy)
 
 if __name__ == '__main__':
+
+    #-------------- Logging & Argparse  ----------------#
+    program = os.path.basename(sys.argv[0])
+    L = logging.getLogger(program)
+    logging.basicConfig(format='%(asctime)s: %(levelname)s: %(message)s')
+    logging.root.setLevel(level=logging.INFO)
+    L.info("Running %s" % ' '.join(sys.argv))
+
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', type=str, help='Path to the pre-defined config args.')
     parser.add_argument('--train_path', type=str, help='Path to the train set.')
@@ -365,7 +376,6 @@ if __name__ == '__main__':
     parser.add_argument('--aggregation_layer_num', type=int, default=1, help='Number of LSTM layers for aggregation layer.')
     parser.add_argument('--context_layer_num', type=int, default=1, help='Number of LSTM layers for context representation layer.')
     parser.add_argument('--highway_layer_num', type=int, default=1, help='Number of highway layers.')
-    # parser.add_argument('--suffix', type=str, default='normal', required=True, help='Suffix of the model name.')
     parser.add_argument('--suffix', type=str, default='normal', help='Suffix of the model name.')
     parser.add_argument('--fix_word_vec', default=False, help='Fix pre-trained word embeddings during training.', action='store_true')
     parser.add_argument('--with_highway', default=False, help='Utilize highway layers.', action='store_true')
@@ -388,6 +398,7 @@ if __name__ == '__main__':
     parser.add_argument('--wo_char', default=False, help='Without character-composed embeddings.', action='store_true')
 
     sys.stdout.flush()
+    # load all args from .config.json instead
     # FLAGS, unparsed = parser.parse_known_args()
     args, unparsed = parser.parse_known_args()
     FLAGS = namespace_utils.load_namespace(args.config)
