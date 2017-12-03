@@ -32,18 +32,28 @@ def pad_3d_tensor(in_val, max_length1=None, max_length2=None, dtype=np.int32):
     return out_val
 
 class SentenceMatchDataStream(object):
-    def __init__(self, inpath, word_vocab=None, char_vocab=None, POS_vocab=None, NER_vocab=None, label_vocab=None, batch_size=60, 
-                 isShuffle=False, isLoop=False, isSort=True, max_char_per_word=10, max_sent_length=200):
+    def __init__(self, input_source, word_vocab=None, char_vocab=None, POS_vocab=None, NER_vocab=None, label_vocab=None, batch_size=60,
+                 isShuffle=False, isLoop=False, isSort=True, max_char_per_word=10, max_sent_length=200, is_online=False):
         instances = []
-        infile = open(inpath, 'rt')
-        for line in infile:
-            line = line.decode('utf-8').strip()
-            if line.startswith('-'): continue
-            items = re.split("\t", line)
+        if is_online:
+            (query, candidates) = input_source
+            query_text = query['content']
+            item_list = [['0', query_text, c['content']] for c in candidates]
+        else:
+            inpath = input_source
+            item_list = []
+            infile = open(inpath, 'rt')
+            for line in infile:
+                line = line.decode('utf-8').strip()
+                if line.startswith('-'): continue
+                item_list.append(re.split("\t", line))
+            infile.close()
+
+        for items in item_list:
             label = items[0]
             sentence1 = items[1].lower()
             sentence2 = items[2].lower()
-            if label_vocab is not None: 
+            if label_vocab is not None:
                 label_id = label_vocab.getIndex(label)
                 if label_id >= label_vocab.vocab_size: label_id = 0
             else: 
@@ -78,7 +88,6 @@ class SentenceMatchDataStream(object):
 
             instances.append((label, sentence1, sentence2, label_id, word_idx_1, word_idx_2, char_matrix_idx_1, char_matrix_idx_2,
                               POS_idx_1, POS_idx_2, NER_idx_1, NER_idx_2))
-        infile.close()
 
         # sort instances based on sentence length
         if isSort: instances = sorted(instances, key=lambda instance: (len(instance[4]), len(instance[5]))) # sort instances based on length

@@ -81,22 +81,26 @@ def evaluate(dataStream, valid_graph, sess, outpath=None, label_vocab=None, mode
         total_tags += len(label_batch)
         correct_tags += sess.run(valid_graph.get_eval_correct(), feed_dict=feed_dict)
 
-        if outpath is not None:
-            if mode =='prediction':
-                predictions = sess.run(valid_graph.get_predictions(), feed_dict=feed_dict)
+        if mode =='prediction':
+            predictions = sess.run(valid_graph.get_predictions(), feed_dict=feed_dict)
+            if outpath is not None:
                 for i in xrange(len(label_batch)):
                     outline = label_batch[i] + "\t" + label_vocab.getWord(predictions[i]) + "\t" + sent1_batch[i] + "\t" + sent2_batch[i] + "\n"
                     outfile.write(outline.encode('utf-8'))
-            else:
-                probs = sess.run(valid_graph.get_prob(), feed_dict=feed_dict)
+        else:
+            probs = sess.run(valid_graph.get_prob(), feed_dict=feed_dict)
+            if outpath is not None:
                 for i in xrange(len(label_batch)):
                     outline = label_batch[i] + "\t" + output_probs(probs[i], label_vocab) + "\t" + sent1_batch[i] + "\t" + sent2_batch[i] + "\n"
                     outfile.write(outline.encode('utf-8'))
-                    #[{'content': 'Text of candidate', 'relevance_score': 0.9}]
-                    if probs_list.has_key(sent1_batch[i]):
-                        probs_list[sent1_batch[i]].append({"content":sent2_batch[i], 'relevance_score': probs[i][0]})
-                    else:
-                        probs_list[sent1_batch[i]] = [{"content":sent2_batch[i], 'relevance_score': probs[i][0]}]
+            #[{'content': 'Text of candidate', 'relevance_score': 0.9}]
+            for i in xrange(len(label_batch)):
+                if probs_list.has_key(sent1_batch[i]):
+                    # probs_list[sent1_batch[i]].append({"content":sent2_batch[i], 'relevance_score': probs[i][0]})
+                    probs_list[sent1_batch[i]].append({'relevance_score': probs[i][0]})
+                else:
+                    # probs_list[sent1_batch[i]] = [{"content":sent2_batch[i], 'relevance_score': probs[i][0]}]
+                    probs_list[sent1_batch[i]] = [{'relevance_score': probs[i][0]}]
 
     if outpath is not None: outfile.close()
 

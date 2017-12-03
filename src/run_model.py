@@ -38,16 +38,16 @@ def init():
     # Define all the command line arguments (e.g. model path, num of threads, etc) here.
     parser = argparse.ArgumentParser()
     parser.add_argument('--model_prefix', type=str, required=True, help='Prefix to the models.')
-    parser.add_argument('--in_path', type=str, required=True, help='the path to the test file.')
-    parser.add_argument('--out_path', type=str, required=True, help='The path to the output file.')
+    # parser.add_argument('--in_path', type=str, required=True, help='the path to the test file.')
+    # parser.add_argument('--out_path', type=str, required=True, help='The path to the output file.')
     parser.add_argument('--word_vec_path', type=str, required=True, help='word embedding file for the input file.')
     parser.add_argument('--mode', type=str, default="prediction", help='prediction or probs')
 
     args, unparsed = parser.parse_known_args()
 
     model_prefix = args.model_prefix
-    in_path = args.in_path
-    out_path = args.out_path
+    # in_path = args.in_path
+    # out_path = args.out_path
     word_vec_path = args.word_vec_path
 
     mode = args.mode
@@ -105,17 +105,6 @@ def init():
 
     # time_used = time.time() - start_time
     # print('Time used for loading vocabs = %ds'%time_used)
-    # start_time = time.time()
-
-    # print('Build SentenceMatchDataStream ... ')
-    testDataStream = SentenceMatchTrainer.SentenceMatchDataStream(in_path, word_vocab=vocabs['word'], char_vocab=vocabs['char'],
-                                              POS_vocab=vocabs['pos'], NER_vocab=vocabs['ner'], label_vocab=vocabs['label'],
-                                              batch_size=FLAGS.batch_size, isShuffle=False, isLoop=True, isSort=False,
-                                              max_char_per_word=FLAGS.max_char_per_word, max_sent_length=FLAGS.max_sent_length)
-    # print('Number of instances in testDataStream: {}'.format(testDataStream.get_num_instance()))
-    # print('Number of batches in testDataStream: {}'.format(testDataStream.get_num_batch()))
-    # time_used = time.time() - start_time
-    # print('Time used for Build SentenceMatchDataStream = %ds'%time_used)
 
     if wo_char: vocabs['char'] = None
 
@@ -175,7 +164,7 @@ def init():
         # time_used = time.time() - start_time
         # print('Time used for loading model parameters = %ds' % time_used)
 
-def calc_relevance_scores(testDataStream):
+def calc_relevance_scores(query, candidates):
     '''
     Use this function to calculate the relevance scores for a list of candidates given a query
     query: A dictionary containing all the information for the query
@@ -189,17 +178,48 @@ def calc_relevance_scores(testDataStream):
     Right now, we only have the 'content' information, later we will add more meta information.
 
     '''
-    # start_time = time.time()
+    # start_time = time.time()*1000.0
+
+    # print('Build SentenceMatchDataStream ... ')
+    testDataStream = SentenceMatchTrainer.SentenceMatchDataStream((query, candidates), word_vocab=vocabs['word'], char_vocab=vocabs['char'], POS_vocab=vocabs['pos'], NER_vocab=vocabs['ner'], label_vocab=vocabs['label'], batch_size=FLAGS.batch_size, isShuffle=False, isLoop=True, isSort=False, max_char_per_word=FLAGS.max_char_per_word, max_sent_length=FLAGS.max_sent_length, is_online=True)
+    # print('Number of instances in testDataStream: {}'.format(testDataStream.get_num_instance()))
+    # print('Number of batches in testDataStream: {}'.format(testDataStream.get_num_batch()))
+    # time_used = time.time()*1000.0 - start_time
+    # print('Time used for Build SentenceMatchDataStream = %dms'%time_used)
+
+    # start_time = time.time()*1000.0
 
     # Decoding on the test set:
-    probs_list = SentenceMatchTrainer.evaluate(testDataStream, valid_graph, sess, outpath=out_path, label_vocab=vocabs['label'], mode=mode, char_vocab=vocabs['char'], POS_vocab=vocabs['pos'], NER_vocab=vocabs['ner'])
+    probs_list = SentenceMatchTrainer.evaluate(testDataStream, valid_graph, sess, label_vocab=vocabs['label'], mode=mode, char_vocab=vocabs['char'], POS_vocab=vocabs['pos'], NER_vocab=vocabs['ner'])
 
-    # time_used = time.time() - start_time
-    # print('Time used for Decoding = %ds (%.4f secs/sample)' % (time_used, time_used*1.0/testDataStream.get_num_instance()))
+    candidates_with_scores =[]
+    for c, s in zip(candidates, probs_list.values()[0]):
+        c.update(s)
+        candidates_with_scores.append(c)
+
+    # time_used = time.time()*1000.0 - start_time
+    # print('Time used for Decoding = %dms (%.4f milli-secs/sample)' % (time_used, time_used*1.0/testDataStream.get_num_instance()))
     # print(probs_list.iteritems().next())
 
-    return probs_list
+    return candidates_with_scores
 
 if __name__ == '__main__':
+
+    # start_time = time.time()
     init()
-    calc_relevance_scores(testDataStream)
+    # time_used = time.time() - start_time
+    # print('Time used for init() = %ds'%time_used)
+
+    # dummy test sample
+    query = {'content': 'I want to display output in a single row in T-SQL <EOS> Above is the input table . <EOS> I am trying to bring all the childsku products in a single row with its count and its associated parent sku.But it is not working as expected <EOS> Now I want the desired output to be like this :'}
+    candidates = [{'content': 'Simulating group_concat MySQL function in Microsoft SQL Server 2005 ? <EOS> I \'m trying to migrate a MySQL-based app over to Microsoft SQL Server 2005 ( not by choice , but that \'s life ) . <EOS> In the original app , we used almost entirely ANSI-SQL compliant statements , with one significant exception -- we used MySQL \'s function fairly frequently . <EOS> , by the way , does this : given a table of , say , employee names and projects ... <EOS> returns : <EOS> ... and here \'s what you get with group_concat : <EOS> returns : <EOS> So what I \'d like to know is : Is it possible to write , say , a user-defined function in SQL Server which emulates the functionality of ? <EOS> I have almost no experience using UDFs , stored procedures , or anything like that , just straight-up SQL , so please err on the side of too much explanation : )'},
+                  {'content': 'How can I see a login \'s default database ? <EOS> I need to detect a login \'s default database . Which system table / view should I query for that in SQL Server 2005 ?'},
+                  {'content': 'FOREIGN KEY constraint error on insert even though entry already exists <EOS> I \'ve created two tables , Customers and Records . Records has a foreign key constraint on customerID . When I try inserting a record to a customer that already exists , it gives me this error : <EOS> Here is the insert code : <EOS> Most of the related questions I have found on here talked about inserting in the wrong order , but I can select the customer with id 10 . Any pointers would be appreciated . <EOS> edit 1 : This returns one customer <EOS> edit 2 : Here is the create script for the records table'},
+                  {'content': 'SQL Assembly Error - Permissions in SQL Server 2005 <EOS> What is this and how do I fix it :'}]
+
+    # start_time = time.time()*1000.0
+    candidates_with_scores = calc_relevance_scores(query, candidates)
+    # time_used = time.time()*1000.0 - start_time
+    # print('Time used for decode = %dms'%time_used)
+    # for i in candidates_with_scores:
+    #     print(i)
